@@ -50,9 +50,9 @@ from train import (
 # ─── Hyperparameter Grid ───────────────────────────────────────────────────────
 
 PARAM_GRID = {
-    "n_estimators":      [50, 100, 200],
-    "max_depth":         [5, 10, 20],
-    "min_samples_split": [2, 5],
+    "n_estimators":      [50],
+    "max_depth":         [5],
+    "min_samples_split": [2],
 }
 
 
