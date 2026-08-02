@@ -1,0 +1,19 @@
+{
+  "run_id": "405fec10b5aa46f5b0b1fdcda1a87ab4",
+  "model_version": 3,
+  "model_name": "StockMovementPredictor",
+  "iteration": 2,
+  "accuracy": 0.79,
+  "f1_score": 0.0,
+  "roc_auc": 0.4749849306811332,
+  "n_estimators": 50,
+  "max_depth": 5,
+  "min_samples_split": 2,
+  "label_classes": [
+    "AARTIIND",
+    "ABCAPITAL",
+    "ABFRL",
+    "ADANIENT",
+    "ADANIGAS"
+  ]
+}

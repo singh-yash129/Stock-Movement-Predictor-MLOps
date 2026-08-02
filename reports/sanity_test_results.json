@@ -1,0 +1,5 @@
+{
+  "test_rolling_avg_10_within_bounds": "PASS",
+  "test_volume_sum_10_non_negative": "PASS",
+  "test_stock_name_valid": "PASS"
+}
