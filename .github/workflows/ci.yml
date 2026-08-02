@@ -64,11 +64,24 @@ jobs:
           ls data/processed/test_*.csv 2>/dev/null || \
             (echo "ERROR: No test data found after dvc pull" && exit 1)
 
-      # ── 7. Download MLflow DB from GCS ───────────────────────────────────────
-      - name: Fetch MLflow tracking DB from GCS
+      # ── 7. Download MLflow Database ───────────────────────────────────────────
+      - name: Download MLflow database
         run: |
-          gsutil cp gs://${{ env.GCS_BUCKET }}/mlflow/mlflow.db ./mlflow.db || \
-          echo "WARNING: Could not download mlflow.db — model registry may be empty"
+          python -c "
+          import sys
+          from google.cloud import storage
+          try:
+              client = storage.Client()
+              bucket = client.bucket('${{ env.GCS_BUCKET }}')
+              blob = bucket.blob('mlflow/mlflow.db')
+              if blob.exists():
+                  blob.download_to_filename('mlflow.db')
+                  print('✓ mlflow.db downloaded successfully.')
+              else:
+                  print('WARNING: mlflow.db not found on GCS.')
+          except Exception as e:
+              print(f'WARNING: Could not download mlflow.db: {e}')
+          "
 
       # ── 8. Run sanity tests ───────────────────────────────────────────────────
       - name: Run feature sanity tests
