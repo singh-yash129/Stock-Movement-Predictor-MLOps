@@ -19,6 +19,7 @@ jobs:
     permissions:
       contents: write          # CML needs to write PR comments
       pull-requests: write
+      id-token: write          # Required for Workload Identity Federation
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
@@ -27,11 +28,12 @@ jobs:
         with:
           fetch-depth: 0       # Required for CML to post PR comments
 
-      # ── 2. Authenticate with GCP ─────────────────────────────────────────────
+      # ── 2. Authenticate with GCP (Workload Identity Federation) ───────────────
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SA_EMAIL }}
 
       # ── 3. Set up Python ─────────────────────────────────────────────────────
       - name: Set up Python 3.10
