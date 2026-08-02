@@ -1,3 +1,6 @@
+# ─── Source data repository (cloned separately, not part of this repo) ───────
+MLOPS_MAY_2026_OPPE1/
+
 # ─── DVC ─────────────────────────────────────────────────────────────────────
 .dvc/cache/
 .dvc/tmp/
