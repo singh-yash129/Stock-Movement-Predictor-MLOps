@@ -1,0 +1,152 @@
+name: CI — Stock Movement Predictor
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  MLFLOW_TRACKING_URI: "sqlite:///mlflow.db"
+  MLFLOW_ARTIFACT_ROOT: "gs://23f2004644-mlops-oppe/mlflow-artifacts"
+  GCS_BUCKET: "23f2004644-mlops-oppe"
+
+jobs:
+  evaluate:
+    name: Evaluate Best Model & Generate CML Report
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write          # CML needs to write PR comments
+      pull-requests: write
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0       # Required for CML to post PR comments
+
+      # ── 2. Authenticate with GCP ─────────────────────────────────────────────
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # ── 3. Set up Python ─────────────────────────────────────────────────────
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      # ── 4. Install dependencies ───────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ── 5. Set up CML ─────────────────────────────────────────────────────────
+      - name: Set up CML
+        uses: iterative/setup-cml@v2
+
+      # ── 6. DVC — pull versioned test data from GCS ───────────────────────────
+      - name: Pull test data via DVC
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.GOOGLE_APPLICATION_CREDENTIALS }}
+        run: |
+          dvc pull data/processed/test_latest.csv.dvc || \
+          dvc pull data/processed/ || \
+          echo "DVC pull attempted — data may already exist"
+          # Verify at least one test file exists
+          ls data/processed/test_*.csv 2>/dev/null || \
+            (echo "ERROR: No test data found after dvc pull" && exit 1)
+
+      # ── 7. Download MLflow DB from GCS ───────────────────────────────────────
+      - name: Fetch MLflow tracking DB from GCS
+        run: |
+          gsutil cp gs://${{ env.GCS_BUCKET }}/mlflow/mlflow.db ./mlflow.db || \
+          echo "WARNING: Could not download mlflow.db — model registry may be empty"
+
+      # ── 8. Run sanity tests ───────────────────────────────────────────────────
+      - name: Run feature sanity tests
+        run: |
+          python src/sanity_tests.py
+
+      # ── 9. Evaluate best model ────────────────────────────────────────────────
+      - name: Run model evaluation
+        run: |
+          python src/evaluate.py
+
+      # ── 10. Generate CML Report ───────────────────────────────────────────────
+      - name: Generate & publish CML report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Start fresh report
+          echo "# 🚀 Stock Movement Predictor — CI Report" > report.md
+          echo "" >> report.md
+          echo "**Branch:** \`${{ github.ref_name }}\`  " >> report.md
+          echo "**Commit:** \`${{ github.sha }}\`  " >> report.md
+          echo "**Run:** [${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> report.md
+          echo "" >> report.md
+
+          # Append sanity test results
+          echo "## ✅ Sanity Test Results" >> report.md
+          if [ -f reports/sanity_test_results.json ]; then
+            python3 - <<'EOF'
+          import json
+          with open("reports/sanity_test_results.json") as f:
+              results = json.load(f)
+          with open("report.md", "a") as out:
+              out.write("| Test | Status |\n|------|--------|\n")
+              for name, status in results.items():
+                  icon = "✅" if status == "PASS" else "❌"
+                  out.write(f"| `{name}` | {icon} {status} |\n")
+              out.write("\n")
+          EOF
+          fi
+
+          # Append metrics
+          echo "## 📊 Evaluation Metrics" >> report.md
+          if [ -f reports/metrics.json ]; then
+            python3 - <<'EOF'
+          import json
+          with open("reports/metrics.json") as f:
+              m = json.load(f)
+          with open("report.md", "a") as out:
+              out.write(f"| Metric | Value |\n|--------|-------|\n")
+              out.write(f"| **Accuracy** | {m['accuracy']} |\n")
+              out.write(f"| **F1-Score** | {m['f1_score']} |\n")
+              out.write(f"| **ROC-AUC**  | {m['roc_auc']} |\n")
+              out.write(f"| N Samples    | {m['n_test_samples']} |\n\n")
+          EOF
+          fi
+
+          # Embed confusion matrix plot
+          if [ -f reports/confusion_matrix.png ]; then
+            cml publish reports/confusion_matrix.png --md >> report.md
+          fi
+
+          # Per-stock metrics
+          echo "## 📈 Per-Stock Performance" >> report.md
+          if [ -f reports/per_stock_metrics.csv ]; then
+            python3 - <<'EOF'
+          import pandas as pd
+          df = pd.read_csv("reports/per_stock_metrics.csv")
+          with open("report.md", "a") as out:
+              out.write(df.to_markdown(index=False) + "\n\n")
+          EOF
+          fi
+
+          # Post as PR comment via CML
+          cml comment create report.md
+
+      # ── 11. Upload artifacts ──────────────────────────────────────────────────
+      - name: Upload evaluation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: |
+            reports/
+            report.md

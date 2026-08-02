@@ -1,0 +1,26 @@
+# Core data & ML
+pandas==2.0.3
+numpy==1.24.4
+scikit-learn==1.3.2
+pyarrow==14.0.2
+joblib==1.3.2
+
+# DVC with GCS support
+dvc==3.50.0
+dvc-gs==3.0.1
+
+# Feast feature store
+feast==0.36.1
+
+# MLflow experiment tracking
+mlflow==2.13.0
+
+# GCP
+google-cloud-storage==2.16.0
+
+# Visualization (for CML reports)
+matplotlib==3.7.5
+seaborn==0.13.2
+
+# Testing / CI
+pytest==7.4.4
