@@ -80,6 +80,7 @@ def feast_apply():
     import sys as _sys
     # Ensure features.py in feature_store/ is importable
     _sys.path.insert(0, str(FEAST_REPO_DIR.resolve()))
+    # pyrefly: ignore [missing-import]
     from features import stock, stock_features  # noqa: E402
 
     store = FeatureStore(repo_path=str(FEAST_REPO_DIR))
