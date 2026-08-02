@@ -14,8 +14,6 @@ Usage (run from repo root):
 
 import argparse
 import os
-import subprocess
-import sys
 from pathlib import Path
 
 import pandas as pd
@@ -75,17 +73,18 @@ def build_feast_parquet(iteration: int) -> Path:
 # ─── Feast Apply & Materialize ─────────────────────────────────────────────────
 
 def feast_apply():
-    """Run `feast apply` from the feature store repo directory."""
-    result = subprocess.run(
-        [sys.executable, "-m", "feast", "apply"],
-        cwd=str(FEAST_REPO_DIR),
-        capture_output=True, text=True
-    )
-    print(result.stdout)
-    if result.returncode != 0:
-        print("STDERR:", result.stderr)
-        raise RuntimeError("feast apply failed")
-    print("[feast] feast apply completed.")
+    """
+    Apply feature definitions using the Feast Python API directly.
+    Avoids subprocess / PATH issues with user-installed packages on Cloud Shell.
+    """
+    import sys as _sys
+    # Ensure features.py in feature_store/ is importable
+    _sys.path.insert(0, str(FEAST_REPO_DIR.resolve()))
+    from features import stock, stock_features  # noqa: E402
+
+    store = FeatureStore(repo_path=str(FEAST_REPO_DIR))
+    store.apply([stock, stock_features])
+    print("[feast] feast apply completed (via Python API).")
 
 
 def feast_materialize(store: FeatureStore):
