@@ -1,4 +1,4 @@
-# 23F2004644 — Stock Movement Predictor (MLOps OPPE-1, MAY 2026)
+# Stock Movement Predictor (MLOps OPPE-1, MAY 2026)
 
 End-to-end MLOps pipeline predicting stock price direction (up/down) 5 minutes in the future.
 
